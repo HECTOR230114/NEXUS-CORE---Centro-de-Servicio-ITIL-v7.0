@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXUS ITIL v7.0 - Dashboard con Gráficos</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #4361ee; --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
+            --info: #3b82f6; --dark: #0f172a; --light: #f8fafc;
+        }
+        * { box-sizing: border-box; margin:0; padding:0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0; min-height: 100vh;
+            transition: background 1s;
+        }
+        header {
+            background: linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.98));
+            backdrop-filter: blur(12px); padding: 20px 40px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000;
+        }
+        .logo h1 {
+            margin: 0; font-size: 2.9em; font-weight: 900;
+            background: linear-gradient(90deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        #clock { background: rgba(255,255,255,0.1); padding: 14px 28px; border-radius: 50px; font-weight: bold; font-size: 1.1em; }
+
+        .dashboard { display: grid; grid-template-columns: 340px 1fr; height: calc(100vh - 100px); gap: 0; }
+        .sidebar {
+            background: rgba(15,23,42,0.98); padding: 30px 20px; overflow-y: auto;
+            border-right: 1px solid rgba(100,116,139,0.3);
+        }
+        .nav-btn {
+            width: 100%; background: rgba(51,65,85,0.6); color: white; border: none;
+            padding: 18px 20px; margin: 12px 0; border-radius: 16px; cursor: pointer;
+            text-align: left; font-size: 16px; font-weight: 600; transition: all 0.3s;
+            display: flex; align-items: center; gap: 16px;
+        }
+        .nav-btn:hover, .nav-btn.active {
+            background: linear-gradient(135deg, #4361ee, #3b82f6);
+            transform: translateX(10px); box-shadow: 0 10px 30px rgba(67,97,238,0.5);
+        }
+
+        .main-content { padding: 30px; overflow-y: auto; }
+        .widget {
+            background: rgba(30,41,59,0.95); border-radius: 20px; padding: 30px;
+            margin-bottom: 30px; box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+            border: 1px solid rgba(100,116,139,0.2); backdrop-filter: blur(12px);
+        }
+        .widget h2 { color: #60a5fa; margin-bottom: 25px; font-size: 1.8em; display: flex; align-items: center; gap: 14px; }
+
+        /* KPIs */
+        .kpi-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 25px; margin: 30px 0;
+        }
+        .kpi-card {
+            background: rgba(51,65,85,0.7); padding: 25px; border-radius: 18px; text-align: center;
+            border-left: 6px solid #4361ee; transition: all 0.4s;
+        }
+        .kpi-card:hover { transform: translateY(-10px); box-shadow: 0 15px 40px rgba(0,0,0,0.5); }
+        .kpi-value { font-size: 3.5em; font-weight: 800; margin: 10px 0; }
+        .kpi-label { font-size: 1.2em; opacity: 0.9; }
+
+        /* Gráficos */
+        .chart-container {
+            background: rgba(15,23,42,0.8); padding: 25px; border-radius: 18px; margin: 20px 0;
+            box-shadow: inset 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { padding: 16px; text-align: left; border-bottom: 1px solid rgba(100,116,139,0.3); }
+        th { background: rgba(67,97,238,0.4); font-weight: bold; }
+        tr:hover { background: rgba(67,97,238,0.15); }
+
+        .status { padding: 8px 16px; border-radius: 30px; font-size: 0.9em; font-weight: bold; }
+        .critica { background: #ef4444; }
+        .alta { background: #f59e0b; color: black; }
+        .media { background: #3b82f6; }
+        .baja { background: #10b981; }
+        .nuevo { background: #ef4444; }
+        .resuelto { background: #10b981; }
+
+        .btn-large {
+            padding: 20px 40px; font-size: 1.4em; border: none; border-radius: 18px;
+            color: white; font-weight: bold; cursor: pointer; margin: 20px 10px;
+            box-shadow: 0 12px 35px rgba(0,0,0,0.5); transition: all 0.4s;
+        }
+        .btn-success { background: linear-gradient(135deg, #10b981, #34d399); }
+        .btn-danger { background: linear-gradient(135deg, #ef4444, #f87171); }
+        .btn-warning { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+        .btn-large:hover { transform: translateY(-10px); box-shadow: 0 20px 50px rgba(0,0,0,0.6); }
+
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95);
+            display: flex; justify-content: center; align-items: center; z-index: 9999; opacity: 0; pointer-events: none; transition: all 0.4s;
+        }
+        .modal.show { opacity: 1; pointer-events: all; }
+        .modal-content {
+            background: #1e293b; padding: 50px; border-radius: 24px; text-align: center; max-width: 600px; box-shadow: 0 30px 80px rgba(0,0,0,0.7);
+            border: 2px solid #4361ee;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Modal Inteligente -->
+<div id="smart-modal" class="modal">
+    <div class="modal-content">
+        <h2 id="modal-title" style="font-size:2.5em; margin-bottom:20px;"></h2>
+        <p id="modal-message" style="font-size:1.3em; margin-bottom:30px;"></p>
+        <div id="modal-buttons"></div>
+    </div>
+</div>
+
+<header>
+    <div class="logo">
+        <h1>NEXUS ITIL</h1>
+        <p>Dashboard Profesional con Gráficos v7.0</p>
+    </div>
+    <div id="clock"></div>
+</header>
+
+<div class="dashboard">
+    <aside class="sidebar">
+        <button class="nav-btn active" onclick="showSection('dashboard')"><i class="fas fa-tachometer-alt"></i> Dashboard</button>
+        <button class="nav-btn" onclick="showSection('incidents')"><i class="fas fa-exclamation-triangle"></i> Incidentes</button>
+        <button class="nav-btn" onclick="showSection('problems')"><i class="fas fa-bug"></i> Problemas</button>
+        <button class="nav-btn" onclick="showSection('simulator')"><i class="fas fa-play-circle"></i> Simulador</button>
+        <button class="nav-btn" onclick="showSection('kb')"><i class="fas fa-book"></i> Base de Conocimiento</button>
+        <button class="nav-btn" onclick="exportPDF()"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
+        <button class="nav-btn" onclick="clearAll()"><i class="fas fa-trash"></i> Limpiar Todo</button>
+    </aside>
+
+    <main class="main-content">
+
+        <!-- DASHBOARD CON GRÁFICOS -->
+        <div id="dashboard" class="section">
+            <div class="widget">
+                <h2><i class="fas fa-chart-line"></i> Panel de Control en Tiempo Real</h2>
+                
+                <!-- KPIs -->
+                <div class="kpi-grid">
+                    <div class="kpi-card"><div class="kpi-value" id="kpi-incidents">0</div><div class="kpi-label">Incidentes Totales</div></div>
+                    <div class="kpi-card"><div class="kpi-value" id="kpi-critical">0</div><div class="kpi-label">Críticos</div></div>
+                    <div class="kpi-card"><div class="kpi-value" id="kpi-resolved">0</div><div class="kpi-label">Resueltos Hoy</div></div>
+                    <div class="kpi-card"><div class="kpi-value text-success">99.1%</div><div class="kpi-label">Cumplimiento SLA</div></div>
+                </div>
+
+                <!-- Gráficos -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 40px;">
+                    <div class="chart-container">
+                        <h3>Incidentes por Prioridad</h3>
+                        <canvas id="priorityChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Evolución Horaria</h3>
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px;">
+                    <div class="chart-container">
+                        <h3>Cumplimiento SLA</h3>
+                        <canvas id="slaChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Problemas por Causa</h3>
+                        <canvas id="rootCauseChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SIMULADOR -->
+        <div id="simulator" class="section" style="display:none;">
+            <div class="widget" style="text-align:center;">
+                <h2><i class="fas fa-play-circle"></i> Generador Automático</h2>
+                <div style="margin:50px 0;">
+                    <button onclick="startAuto('incident')" class="btn-large btn-danger">Generar Incidentes</button>
+                    <button onclick="startAuto('problem')" class="btn-large btn-warning">Generar Problemas</button>
+                </div>
+                <button id="resolve-btn" class="btn-large btn-success" style="font-size:1.6em; padding:30px 60px;">
+                    Simular Resolución Completa
+                </button>
+            </div>
+        </div>
+
+        <!-- INCIDENTES Y PROBLEMAS (tablas) -->
+        <div id="incidents" class="section" style="display:none;">
+            <div class="widget">
+                <h2><i class="fas fa-exclamation-triangle"></i> Incidentes Registrados</h2>
+                <div id="inc-table"></div>
+            </div>
+        </div>
+
+        <div id="problems" class="section" style="display:none;">
+            <div class="widget">
+                <h2><i class="fas fa-bug"></i> Problemas Registrados</h2>
+                <div id="prob-table"></div>
+            </div>
+        </div>
+
+        <div id="kb" class="section" style="display:none;">
+            <div class="widget">
+                <h2><i class="fas fa-book"></i> Base de Conocimiento</h2>
+                <div id="kb-list"></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<audio id="alert" src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3"></audio>
+
+<script>
+    let incidents = [], problems = [], resolved = 0;
+    let charts = {};
+    let autoInterval = null;
+
+    const templates = {
+        incident: ["Portal web caído", "Correo no responde", "VPN desconectada", "SAP lento", "Error 503", "Base de datos caída"],
+        problem: ["Caídas recurrentes web", "Backup fallando", "Desconexiones masivas", "Alta carga CPU"]
+    };
+
+    // Reloj
+    setInterval(() => document.getElementById('clock').textContent = new Date().toLocaleString('es-ES'), 1000);
+
+    function initCharts() {
+        charts.priority = new Chart(document.getElementById('priorityChart'), {
+            type: 'doughnut',
+            data: { labels: ['Crítica','Alta','Media','Baja'], datasets: [{ data: [0,0,0,0], backgroundColor: ['#ef4444','#f59e0b','#3b82f6','#10b981'] }] },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+
+        charts.trend = new Chart(document.getElementById('trendChart'), {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Incidentes', data: [], borderColor: '#4361ee', tension: 0.4 }] },
+            options: { responsive: true }
+        });
+
+        charts.sla = new Chart(document.getElementById('slaChart'), {
+            type: 'bar',
+            data: { labels: ['Cumplidos','Incumplidos'], datasets: [{ data: [95,5], backgroundColor: ['#10b981','#ef4444'] }] }
+        });
+
+        charts.rootCause = new Chart(document.getElementById('rootCauseChart'), {
+            type: 'pie',
+            data: { labels: ['Servidor','Red','Aplicación','Base de Datos'], datasets: [{ data: [30,25,25,20], backgroundColor: ['#8b5cf6','#f59e0b','#3b82f6','#10b981'] }] }
+        });
+    }
+
+    function updateCharts() {
+        const crit = incidents.filter(i => i.priority === 'Crítica').length;
+        const alta = incidents.filter(i => i.priority === 'Alta').length;
+        const media = incidents.filter(i => i.priority === 'Media').length;
+        const baja = incidents.filter(i => i.priority === 'Baja' || !i.priority).length;
+
+        charts.priority.data.datasets[0].data = [crit, alta, media, baja];
+        charts.priority.update();
+
+        document.getElementById('kpi-incidents').textContent = incidents.length;
+        document.getElementById('kpi-critical').textContent = crit;
+        document.getElementById('kpi-resolved').textContent = resolved;
+    }
+
+    function startAuto(type) {
+        clearInterval(autoInterval);
+        autoInterval = setInterval(() => {
+            const item = {
+                id: type === 'incident' ? 'INC' + String(1000 + incidents.length + 1).padStart(4,'0') : 'PRB' + String(problems.length + 1).padStart(6,'0'),
+                title: templates[type][Math.floor(Math.random() * templates[type].length)],
+                priority: type === 'incident' ? ['Crítica','Alta','Media'][Math.floor(Math.random()*3)] : 'Alta',
+                status: 'Nuevo',
+                time: new Date().toLocaleTimeString()
+            };
+            (type === 'incident' ? incidents : problems).unshift(item);
+            updateCharts();
+            if (item.priority === 'Crítica') document.getElementById('alert').play();
+        }, 5000);
+    }
+
+    function showSection(sec) {
+        document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+        document.getElementById(sec).style.display = 'block';
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.onclick?.toString().includes(sec) && b.classList.add('active'));
+    }
+
+    function showModal(title, msg, buttons) {
+        document.getElementById('modal-title').textContent = title;
+        document.getElementById('modal-message').textContent = msg;
+        document.getElementById('modal-buttons').innerHTML = buttons;
+        document.getElementById('smart-modal').classList.add('show');
+    }
+
+    document.getElementById('resolve-btn').onclick = () => {
+        showModal("Simulación Completa", "¿Iniciar resolución automática de todos los registros?", `
+            <button class="btn-large btn-success" onclick="document.getElementById('smart-modal').classList.remove('show'); alert('Resolución iniciada')">Sí</button>
+            <button class="btn-large btn-danger" onclick="document.getElementById('smart-modal').classList.remove('show')">No</button>
+        `);
+    };
+
+    function exportPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.setFontSize(20); doc.text('Dashboard NEXUS ITIL v7.0', 20, 20);
+        doc.setFontSize(12); doc.text(`Generado: ${new Date().toLocaleString()}`, 20, 40);
+        doc.text(`Incidentes: ${incidents.length} | Críticos: ${incidents.filter(i=>i.priority==='Crítica').length}`, 20, 50);
+        doc.save('nexus-itil-dashboard.pdf');
+    }
+
+    function clearAll() {
+        if (confirm('¿Limpiar todo el sistema?')) location.reload();
+    }
+
+    // Inicializar
+    initCharts();
+    showSection('dashboard');
+</script>
+</body>
+</html>
