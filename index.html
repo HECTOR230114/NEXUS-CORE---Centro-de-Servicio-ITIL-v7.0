@@ -63,6 +63,13 @@
         .kb-card h3 { color: #60a5fa; margin-bottom: 15px; }
         .kb-card .kb-meta { color: #94a3b8; font-size: 0.9em; margin: 10px 0; }
         .kb-solution { background: rgba(16,185,129,0.1); padding: 15px; border-radius: 10px; margin-top: 10px; border-left: 3px solid #10b981; }
+        .kb-actions { display: flex; gap: 15px; margin-top: 20px; align-items: center; }
+        .kb-btn { padding: 10px 20px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; transition: 0.3s; display: flex; align-items: center; gap: 8px; }
+        .kb-btn:hover { transform: translateY(-3px); }
+        .btn-helpful { background: linear-gradient(135deg, #10b981, #34d399); color: white; }
+        .btn-not-helpful { background: linear-gradient(135deg, #ef4444, #f87171); color: white; }
+        .kb-stats { display: flex; gap: 20px; padding: 15px; background: rgba(51,65,85,0.5); border-radius: 10px; margin-top: 15px; }
+        .stat-item { display: flex; align-items: center; gap: 8px; color: #e2e8f0; }
     </style>
 </head>
 <body>
@@ -592,7 +599,10 @@
             author: item.assignedTo || 'Sistema Automático',
             date: new Date().toLocaleString('es-ES'),
             views: 0,
-            helpful: 0
+            helpful: 0,
+            notHelpful: 0,
+            userRated: false,
+            viewed: false
         };
         
         kbArticles.unshift(article);
@@ -607,8 +617,16 @@
             return;
         }
 
-        container.innerHTML = kbArticles.map(article => `
-            <div class="kb-card">
+        // Incrementar vistas automáticamente cuando se accede a la sección
+        kbArticles.forEach(article => {
+            if (!article.viewed) {
+                article.views++;
+                article.viewed = true;
+            }
+        });
+
+        container.innerHTML = kbArticles.map((article, index) => `
+            <div class="kb-card" id="kb-${index}">
                 <h3><i class="fas fa-lightbulb"></i> ${article.title}</h3>
                 <div class="kb-meta">
                     <i class="fas fa-tag"></i> <strong>ID:</strong> ${article.id} | 
@@ -628,129 +646,327 @@
                     <strong><i class="fas fa-check-circle"></i> Solución Aplicada:</strong><br>
                     ${article.solution}
                 </div>
-                <div style="margin-top:15px; color:#64748b;">
-                    <i class="fas fa-eye"></i> ${article.views} vistas | 
-                    <i class="fas fa-thumbs-up"></i> ${article.helpful} útil
+                <div class="kb-stats">
+                    <div class="stat-item">
+                        <i class="fas fa-eye" style="color:#3b82f6;"></i>
+                        <strong id="views-${index}">${article.views}</strong> vistas
+                    </div>
+                    <div class="stat-item">
+                        <i class="fas fa-thumbs-up" style="color:#10b981;"></i>
+                        <strong id="helpful-${index}">${article.helpful}</strong> útil
+                    </div>
+                    <div class="stat-item">
+                        <i class="fas fa-thumbs-down" style="color:#ef4444;"></i>
+                        <strong id="not-helpful-${index}">${article.notHelpful || 0}</strong> no útil
+                    </div>
+                    ${article.userRated ? 
+                        `<div class="stat-item" style="color:#10b981;">
+                            <i class="fas fa-check-circle"></i> Ya has valorado este artículo
+                        </div>` : 
+                        ''
+                    }
                 </div>
+                ${!article.userRated ? `
+                <div class="kb-actions">
+                    <button class="kb-btn btn-helpful" onclick="rateArticle(${index}, true)">
+                        <i class="fas fa-thumbs-up"></i> Me fue útil
+                    </button>
+                    <button class="kb-btn btn-not-helpful" onclick="rateArticle(${index}, false)">
+                        <i class="fas fa-thumbs-down"></i> No me fue útil
+                    </button>
+                </div>
+                ` : ''}
             </div>
         `).join('');
+        
+        updateCharts();
+    }
+
+    function rateArticle(index, helpful) {
+        if (kbArticles[index].userRated) {
+            toast("⚠️ Ya has valorado este artículo");
+            return;
+        }
+
+        if (helpful) {
+            kbArticles[index].helpful++;
+            toast("✅ ¡Gracias! Tu valoración ha sido registrada como útil");
+        } else {
+            kbArticles[index].notHelpful = (kbArticles[index].notHelpful || 0) + 1;
+            toast("📝 Gracias por tu feedback. Trabajaremos en mejorar este artículo");
+        }
+
+        kbArticles[index].userRated = true;
+        renderKB();
     }
 
     function exportPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
+        let yPos = 20;
         
-        // PORTADA
+        // ========== PORTADA ==========
         doc.setFillColor(15, 23, 42);
         doc.rect(0, 0, 210, 297, 'F');
-        doc.setTextColor(96, 165, 250);
-        doc.setFontSize(32);
-        doc.text('NEXUS ITIL v10.0', 105, 80, { align: 'center' });
-        doc.setFontSize(18);
-        doc.setTextColor(226, 232, 240);
-        doc.text('Reporte Completo de Gestión', 105, 100, { align: 'center' });
-        doc.setFontSize(12);
-        doc.text(`Generado: ${new Date().toLocaleString('es-ES')}`, 105, 120, { align: 'center' });
         
-        // RESUMEN EJECUTIVO
+        // Logo y título
+        doc.setTextColor(96, 165, 250);
+        doc.setFontSize(40);
+        doc.setFont(undefined, 'bold');
+        doc.text('NEXUS ITIL', 105, 80, { align: 'center' });
+        
+        doc.setFontSize(22);
+        doc.setTextColor(167, 139, 250);
+        doc.text('Simulador Profesional v10.0', 105, 100, { align: 'center' });
+        
+        doc.setFontSize(16);
+        doc.setTextColor(226, 232, 240);
+        doc.text('Reporte Completo de Gestión ITIL', 105, 120, { align: 'center' });
+        
+        // Información de generación
+        doc.setFontSize(12);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`Generado: ${new Date().toLocaleString('es-ES')}`, 105, 140, { align: 'center' });
+        doc.text(`Usuario: Administrador del Sistema`, 105, 150, { align: 'center' });
+        
+        // Decoración
+        doc.setDrawColor(67, 97, 238);
+        doc.setLineWidth(2);
+        doc.line(40, 170, 170, 170);
+        
+        // ========== PÁGINA 2: RESUMEN EJECUTIVO ==========
         doc.addPage();
         doc.setTextColor(0, 0, 0);
-        doc.setFontSize(20);
-        doc.text('Resumen Ejecutivo', 20, 20);
-        doc.setFontSize(12);
-        doc.text(`Total Incidentes: ${incidents.length}`, 20, 35);
-        doc.text(`Total Problemas: ${problems.length}`, 20, 45);
-        doc.text(`Registros Resueltos: ${resolvedCount}`, 20, 55);
-        doc.text(`Artículos KB: ${kbArticles.length}`, 20, 65);
-        doc.text(`SLA Compliance: 99.4%`, 20, 75);
+        doc.setFontSize(24);
+        doc.setFont(undefined, 'bold');
+        doc.text('📊 Resumen Ejecutivo', 20, yPos);
         
-        // ESTADÍSTICAS
+        yPos = 40;
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'normal');
+        
+        // Métricas principales
+        doc.setFillColor(67, 97, 238);
+        doc.roundedRect(20, yPos, 170, 10, 2, 2, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont(undefined, 'bold');
+        doc.text('MÉTRICAS GENERALES', 25, yPos + 7);
+        
+        yPos += 15;
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        doc.text(`📋 Total de Incidentes Registrados: ${incidents.length}`, 25, yPos);
+        yPos += 10;
+        doc.text(`🐛 Total de Problemas Identificados: ${problems.length}`, 25, yPos);
+        yPos += 10;
+        doc.text(`✅ Registros Resueltos: ${resolvedCount}`, 25, yPos);
+        yPos += 10;
+        doc.text(`📚 Artículos en Base de Conocimiento: ${kbArticles.length}`, 25, yPos);
+        yPos += 10;
+        doc.text(`🎯 SLA Compliance: 99.4%`, 25, yPos);
+        yPos += 10;
+        const totalViews = kbArticles.reduce((sum, kb) => sum + kb.views, 0);
+        const totalHelpful = kbArticles.reduce((sum, kb) => sum + kb.helpful, 0);
+        doc.text(`👁️ Total de Vistas KB: ${totalViews}`, 25, yPos);
+        yPos += 10;
+        doc.text(`👍 Valoraciones Positivas KB: ${totalHelpful}`, 25, yPos);
+        
+        // Estadísticas de prioridad
+        yPos += 20;
+        doc.setFillColor(239, 68, 68);
+        doc.roundedRect(20, yPos, 170, 10, 2, 2, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont(undefined, 'bold');
+        doc.text('DISTRIBUCIÓN POR PRIORIDAD', 25, yPos + 7);
+        
+        yPos += 15;
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
         const criticos = incidents.filter(i => i.priority === 'Crítica').length;
         const altos = incidents.filter(i => i.priority === 'Alta').length;
         const medios = incidents.filter(i => i.priority === 'Media').length;
-        doc.text('Distribución por Prioridad:', 20, 90);
-        doc.text(`  • Crítica: ${criticos}`, 25, 100);
-        doc.text(`  • Alta: ${altos}`, 25, 110);
-        doc.text(`  • Media: ${medios}`, 25, 120);
+        const bajos = incidents.filter(i => i.priority === 'Baja').length;
         
-        // TABLA DE INCIDENTES
+        doc.text(`🔴 Crítica: ${criticos} (${((criticos/incidents.length)*100 || 0).toFixed(1)}%)`, 25, yPos);
+        yPos += 10;
+        doc.text(`🟠 Alta: ${altos} (${((altos/incidents.length)*100 || 0).toFixed(1)}%)`, 25, yPos);
+        yPos += 10;
+        doc.text(`🔵 Media: ${medios} (${((medios/incidents.length)*100 || 0).toFixed(1)}%)`, 25, yPos);
+        yPos += 10;
+        doc.text(`⚪ Baja: ${bajos} (${((bajos/incidents.length)*100 || 0).toFixed(1)}%)`, 25, yPos);
+        
+        // Estadísticas de estado
+        yPos += 20;
+        doc.setFillColor(16, 185, 129);
+        doc.roundedRect(20, yPos, 170, 10, 2, 2, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont(undefined, 'bold');
+        doc.text('DISTRIBUCIÓN POR ESTADO', 25, yPos + 7);
+        
+        yPos += 15;
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        const nuevo = incidents.filter(i => i.status === 'Nuevo').length;
+        const progreso = incidents.filter(i => i.status === 'En Progreso').length;
+        const investig = incidents.filter(i => i.status === 'En Investigación').length;
+        const resuelto = incidents.filter(i => i.status === 'Resuelto').length;
+        
+        doc.text(`🆕 Nuevo: ${nuevo}`, 25, yPos);
+        yPos += 10;
+        doc.text(`🔄 En Progreso: ${progreso}`, 25, yPos);
+        yPos += 10;
+        doc.text(`🔍 En Investigación: ${investig}`, 25, yPos);
+        yPos += 10;
+        doc.text(`✅ Resuelto: ${resuelto}`, 25, yPos);
+        
+        // ========== TABLA DE INCIDENTES ==========
         if (incidents.length > 0) {
             doc.addPage();
-            doc.setFontSize(18);
-            doc.text('Detalle de Incidentes', 20, 20);
+            doc.setFontSize(20);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(67, 97, 238);
+            doc.text('🚨 Detalle Completo de Incidentes', 20, 20);
             
             const incData = incidents.map(inc => [
                 inc.id,
-                inc.title.substring(0, 30),
+                inc.title.substring(0, 25) + (inc.title.length > 25 ? '...' : ''),
                 inc.category,
+                inc.affected,
                 inc.priority,
                 inc.status,
-                inc.assignedTo,
-                inc.time
+                inc.assignedTo.substring(0, 15),
+                inc.sla
             ]);
             
             doc.autoTable({
                 startY: 30,
-                head: [['ID', 'Título', 'Categoría', 'Prioridad', 'Estado', 'Responsable', 'Hora']],
+                head: [['ID', 'Título', 'Categoría', 'Afectados', 'Prioridad', 'Estado', 'Responsable', 'SLA']],
                 body: incData,
-                theme: 'grid',
-                headStyles: { fillColor: [67, 97, 238] },
-                styles: { fontSize: 8 }
+                theme: 'striped',
+                headStyles: { 
+                    fillColor: [67, 97, 238],
+                    textColor: [255, 255, 255],
+                    fontSize: 10,
+                    fontStyle: 'bold'
+                },
+                styles: { 
+                    fontSize: 8,
+                    cellPadding: 3
+                },
+                alternateRowStyles: {
+                    fillColor: [241, 245, 249]
+                },
+                columnStyles: {
+                    0: { fontStyle: 'bold', textColor: [67, 97, 238] },
+                    4: { fontStyle: 'bold' },
+                    5: { fontStyle: 'bold' }
+                }
             });
         }
         
-        // TABLA DE PROBLEMAS
+        // ========== TABLA DE PROBLEMAS ==========
         if (problems.length > 0) {
             doc.addPage();
-            doc.setFontSize(18);
-            doc.text('Detalle de Problemas', 20, 20);
+            doc.setFontSize(20);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(234, 88, 12);
+            doc.text('🐛 Detalle Completo de Problemas', 20, 20);
             
             const probData = problems.map(prob => [
                 prob.id,
-                prob.title.substring(0, 25),
+                prob.title.substring(0, 25) + (prob.title.length > 25 ? '...' : ''),
                 prob.category,
-                prob.rootCause.substring(0, 35),
+                prob.rootCause.substring(0, 35) + (prob.rootCause.length > 35 ? '...' : ''),
                 String(prob.relatedIncidents),
                 prob.status,
-                prob.assignedTo
+                prob.assignedTo.substring(0, 20)
             ]);
             
             doc.autoTable({
                 startY: 30,
                 head: [['ID', 'Título', 'Categoría', 'Causa Raíz', 'Inc. Rel.', 'Estado', 'Equipo']],
                 body: probData,
-                theme: 'grid',
-                headStyles: { fillColor: [234, 88, 12] },
-                styles: { fontSize: 8 }
+                theme: 'striped',
+                headStyles: { 
+                    fillColor: [234, 88, 12],
+                    textColor: [255, 255, 255],
+                    fontSize: 10,
+                    fontStyle: 'bold'
+                },
+                styles: { 
+                    fontSize: 8,
+                    cellPadding: 3
+                },
+                alternateRowStyles: {
+                    fillColor: [254, 243, 199]
+                },
+                columnStyles: {
+                    0: { fontStyle: 'bold', textColor: [234, 88, 12] },
+                    3: { fontStyle: 'italic', textColor: [120, 53, 15] }
+                }
             });
         }
         
-        // BASE DE CONOCIMIENTO
+        // ========== BASE DE CONOCIMIENTO ==========
         if (kbArticles.length > 0) {
             doc.addPage();
-            doc.setFontSize(18);
-            doc.text('Base de Conocimiento', 20, 20);
+            doc.setFontSize(20);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(16, 185, 129);
+            doc.text('📚 Base de Conocimiento', 20, 20);
             
             const kbData = kbArticles.map(kb => [
                 kb.id,
-                kb.title.substring(0, 30),
+                kb.title.substring(0, 30) + (kb.title.length > 30 ? '...' : ''),
                 kb.category,
-                kb.solution.substring(0, 40),
-                kb.timeResolved
+                kb.solution.substring(0, 45) + (kb.solution.length > 45 ? '...' : ''),
+                kb.timeResolved,
+                String(kb.views),
+                String(kb.helpful)
             ]);
             
             doc.autoTable({
                 startY: 30,
-                head: [['ID', 'Título', 'Categoría', 'Solución', 'Tiempo']],
+                head: [['ID KB', 'Título', 'Categoría', 'Solución', 'Tiempo', 'Vistas', 'Útil']],
                 body: kbData,
-                theme: 'grid',
-                headStyles: { fillColor: [16, 185, 129] },
-                styles: { fontSize: 8 }
+                theme: 'striped',
+                headStyles: { 
+                    fillColor: [16, 185, 129],
+                    textColor: [255, 255, 255],
+                    fontSize: 10,
+                    fontStyle: 'bold'
+                },
+                styles: { 
+                    fontSize: 8,
+                    cellPadding: 3
+                },
+                alternateRowStyles: {
+                    fillColor: [209, 250, 229]
+                },
+                columnStyles: {
+                    0: { fontStyle: 'bold', textColor: [16, 185, 129] },
+                    5: { halign: 'center' },
+                    6: { halign: 'center', fontStyle: 'bold' }
+                }
             });
         }
         
+        // ========== PÁGINA FINAL ==========
+        doc.addPage();
+        doc.setFillColor(15, 23, 42);
+        doc.rect(0, 0, 210, 297, 'F');
+        
+        doc.setTextColor(96, 165, 250);
+        doc.setFontSize(28);
+        doc.text('Reporte Generado Exitosamente', 105, 120, { align: 'center' });
+        
+        doc.setFontSize(14);
+        doc.setTextColor(148, 163, 184);
+        doc.text('NEXUS ITIL v10.0 - Sistema de Gestión ITIL', 105, 140, { align: 'center' });
+        doc.text('© 2025 Todos los derechos reservados', 105, 155, { align: 'center' });
+        
         doc.save('nexus-itil-v10-reporte-completo.pdf');
-        toast("📄 PDF exportado exitosamente");
+        toast("📄 PDF exportado exitosamente con formato profesional");
     }
 
     function exportJSON() {
