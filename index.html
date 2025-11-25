@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEXUS ITIL v9.0 - Simulador Profesional Completo</title>
+    <title>NEXUS ITIL v10.0 - Simulador Profesional Completo</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     <style>
         :root { --p: #4361ee; --s: #10b981; --w: #f59e0b; --d: #ef4444; --i: #3b82f6; --dark: #0f172a; }
@@ -23,7 +24,7 @@
         .main-content { padding: 40px; overflow-y: auto; }
         .widget { background: rgba(30,41,59,0.95); border-radius: 22px; padding: 35px; margin-bottom: 35px; box-shadow: 0 15px 50px rgba(0,0,0,0.5); border: 1px solid rgba(100,116,139,0.2); }
 
-        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(minmax(250px,1fr))); gap: 30px; margin: 40px 0; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 30px; margin: 40px 0; }
         .kpi-card { background: linear-gradient(135deg, rgba(51,65,85,0.9), rgba(30,41,59,1)); padding: 30px; border-radius: 20px; text-align: center; border-left: 8px solid #4361ee; transition: 0.4s; }
         .kpi-card:hover { transform: translateY(-12px); }
         .kpi-value { font-size: 4.5em; font-weight: 900; }
@@ -42,8 +43,8 @@
         th, td { padding: 18px; border-bottom: 1px solid #475569; text-align: left; }
         th { background: rgba(67,97,238,0.5); }
         .status { padding: 8px 16px; border-radius: 30px; font-weight: bold; font-size: 0.9em; }
-        .critica { background: #ef4444; } .alta { background:#f59e0b; color:black; } .media { background:#3b82f6; }
-        .nuevo { background:#ef4444; } .en-investigacion { background:#f59e0b; color:black; } .resuelto { background:#10b981; }
+        .critica { background: #ef4444; } .alta { background:#f59e0b; color:black; } .media { background:#3b82f6; } .baja { background:#64748b; }
+        .nuevo { background:#ef4444; } .en-investigacion { background:#f59e0b; color:black; } .resuelto { background:#10b981; } .en-progreso { background:#3b82f6; }
 
         .simulation-box { background: rgba(15,23,42,0.95); border: 3px solid #10b981; border-radius: 20px; padding: 30px; margin-top: 40px; display: none; }
         .step { padding: 20px; background: rgba(51,65,85,0.7); border-radius: 14px; margin: 15px 0; border-left: 6px solid #64748b; opacity: 0; transform: translateX(-50px); transition: all 0.8s; }
@@ -56,11 +57,16 @@
 
         .toast { position: fixed; bottom: 30px; right: 30px; background: #10b981; color: white; padding: 18px 35px; border-radius: 16px; box-shadow: 0 15px 40px rgba(0,0,0,0.5); z-index: 10000; animation: slide 0.6s; font-size: 1.2em; }
         @keyframes slide { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+        .detail-row { background: rgba(51,65,85,0.5); padding: 15px; border-radius: 10px; margin: 10px 0; }
+        .kb-card { background: linear-gradient(135deg, rgba(67,97,238,0.2), rgba(59,130,246,0.1)); padding: 25px; border-radius: 16px; margin: 20px 0; border-left: 5px solid #4361ee; }
+        .kb-card h3 { color: #60a5fa; margin-bottom: 15px; }
+        .kb-card .kb-meta { color: #94a3b8; font-size: 0.9em; margin: 10px 0; }
+        .kb-solution { background: rgba(16,185,129,0.1); padding: 15px; border-radius: 10px; margin-top: 10px; border-left: 3px solid #10b981; }
     </style>
 </head>
 <body>
 
-<!-- MODAL INTELIGENTE -->
 <div id="modal" class="modal">
     <div class="modal-content">
         <h2 id="modal-title" style="font-size:2.8em; margin-bottom:20px; color:#60a5fa;"></h2>
@@ -72,7 +78,7 @@
 <header>
     <div class="logo">
         <h1>NEXUS ITIL</h1>
-        <p>Simulador Profesional v9.0 – Todo Funciona</p>
+        <p>Simulador Profesional v10.0 – Versión Completa Mejorada</p>
     </div>
     <div id="clock"></div>
 </header>
@@ -97,13 +103,17 @@
                 <h2><i class="fas fa-chart-line"></i> Centro de Operaciones</h2>
                 <div class="kpi-grid">
                     <div class="kpi-card"><div class="kpi-value" id="k-inc">0</div><div>Incidentes</div></div>
-                    <div class="kpi-card"><div class="kpi-value text-danger" id="k-crit">0</div><div>Críticos</div></div>
-                    <div class="kpi-card"><div class="kpi-value text-success" id="k-res">0</div><div>Resueltos</div></div>
+                    <div class="kpi-card"><div class="kpi-value" style="color:#ef4444;" id="k-crit">0</div><div>Críticos</div></div>
+                    <div class="kpi-card"><div class="kpi-value" style="color:#10b981;" id="k-res">0</div><div>Resueltos</div></div>
+                    <div class="kpi-card"><div class="kpi-value" id="k-prob">0</div><div>Problemas</div></div>
+                    <div class="kpi-card"><div class="kpi-value" id="k-kb">0</div><div>Artículos KB</div></div>
                     <div class="kpi-card"><div class="kpi-value">99.4%</div><div>SLA</div></div>
                 </div>
                 <div class="charts-grid">
                     <div class="chart-box"><canvas id="chart-prio"></canvas></div>
                     <div class="chart-box"><canvas id="chart-trend"></canvas></div>
+                    <div class="chart-box"><canvas id="chart-status"></canvas></div>
+                    <div class="chart-box"><canvas id="chart-problems"></canvas></div>
                 </div>
             </div>
         </div>
@@ -118,14 +128,12 @@
                 </div>
                 <button onclick="stopGen()" class="btn-giant btn-stop">Detener Todo</button>
 
-                <!-- BOTÓN QUE ABRE EL MODAL EXACTAMENTE COMO PEDISTE -->
                 <div style="margin:80px 0;">
                     <button onclick="openResolveModal()" class="btn-giant btn-resolve" style="font-size:2em; padding:35px 70px;">
                         Simular la Resolución de Todos los Registros
                     </button>
                 </div>
 
-                <!-- Área de simulación (se muestra solo al elegir "Sí") -->
                 <div id="simulation-area" class="simulation-box">
                     <h2><i class="fas fa-magic"></i> Simulación de Resolución en Curso</h2>
                     <div id="sim-steps"></div>
@@ -134,84 +142,296 @@
             </div>
         </div>
 
-        <!-- INCIDENTES / PROBLEMAS / KB -->
-        <div id="incidents" class="section" style="display:none;"><div class="widget"><h2>Incidentes</h2><div id="inc-table"></div></div></div>
-        <div id="problems" class="section" style="display:none;"><div class="widget"><h2>Problemas</h2><div id="prob-table"></div></div></div>
-        <div id="kb" class="section" style="display:none;"><div class="widget"><h2>Base de Conocimiento</h2><div id="kb-list" style="display:grid; gap:20px;"></div></div></div>
+        <!-- INCIDENTES -->
+        <div id="incidents" class="section" style="display:none;">
+            <div class="widget">
+                <h2><i class="fas fa-exclamation-triangle"></i> Gestión de Incidentes</h2>
+                <div id="inc-table"></div>
+            </div>
+        </div>
+
+        <!-- PROBLEMAS -->
+        <div id="problems" class="section" style="display:none;">
+            <div class="widget">
+                <h2><i class="fas fa-bug"></i> Gestión de Problemas</h2>
+                <div id="prob-table"></div>
+            </div>
+        </div>
+
+        <!-- BASE DE CONOCIMIENTO -->
+        <div id="kb" class="section" style="display:none;">
+            <div class="widget">
+                <h2><i class="fas fa-book"></i> Base de Conocimiento</h2>
+                <p style="margin-bottom:20px; color:#94a3b8;">Artículos generados automáticamente a partir de incidentes y problemas resueltos</p>
+                <div id="kb-list"></div>
+            </div>
+        </div>
     </main>
 </div>
 
 <audio id="alert" src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3"></audio>
 
 <script>
-    let incidents = [], problems = [], resolvedCount = 0;
+    let incidents = [], problems = [], resolvedCount = 0, kbArticles = [];
     let genInterval = null, simInterval = null;
     let charts = {};
 
-    const incTemplates = ["Portal caído", "Correo falla", "VPN desconectada", "SAP lento", "Error 503", "AD falla"];
-    const probTemplates = ["Caídas recurrentes", "Backup falla", "VPN inestable", "Alta carga"];
+    const incTemplates = [
+        {title: "Portal web caído", desc: "El portal principal no responde", category: "Infraestructura", affected: "500+ usuarios", impact: "Alto"},
+        {title: "Servicio de correo falla", desc: "Imposible enviar/recibir emails", category: "Comunicaciones", affected: "300 usuarios", impact: "Crítico"},
+        {title: "VPN desconectada", desc: "Conexión VPN intermitente", category: "Red", affected: "150 usuarios", impact: "Medio"},
+        {title: "SAP responde lento", desc: "Tiempos de respuesta >10s", category: "Aplicaciones", affected: "200 usuarios", impact: "Alto"},
+        {title: "Error 503 en API", desc: "Servicio no disponible", category: "Desarrollo", affected: "80 usuarios", impact: "Crítico"},
+        {title: "Active Directory falla", desc: "Imposible autenticar usuarios", category: "Seguridad", affected: "1000+ usuarios", impact: "Crítico"},
+        {title: "Base de datos Oracle caída", desc: "DB no responde a consultas", category: "Datos", affected: "400 usuarios", impact: "Crítico"},
+        {title: "Impresoras red offline", desc: "Impresoras no detectadas", category: "Hardware", affected: "50 usuarios", impact: "Bajo"},
+    ];
+
+    const probTemplates = [
+        {title: "Caídas recurrentes del portal", desc: "Portal cae cada 3 horas", rootCause: "Fuga de memoria en servidor Apache", category: "Infraestructura"},
+        {title: "Backup nocturno falla", desc: "Backups fallan sistemáticamente", rootCause: "Espacio insuficiente en disco", category: "Almacenamiento"},
+        {title: "VPN inestable después de actualización", desc: "Conexiones caen tras 15 min", rootCause: "Incompatibilidad con firewall v8.2", category: "Red"},
+        {title: "Alta carga en DB producción", desc: "CPU al 95% constante", rootCause: "Consultas sin índices optimizados", category: "Base de Datos"},
+        {title: "Correos marcados como spam", desc: "Emails corporativos van a spam", rootCause: "Configuración SPF/DKIM incorrecta", category: "Comunicaciones"},
+        {title: "Lentitud general en aplicaciones", desc: "Todas las apps responden lento", rootCause: "Switch principal saturado", category: "Red"},
+    ];
+
+    const solutions = [
+        "Reinicio del servicio + aplicación de parche de seguridad actualizado",
+        "Limpieza de caché + optimización de consultas SQL + reinicio programado",
+        "Actualización de firmware + configuración de parámetros de red",
+        "Restauración desde backup + verificación de integridad de datos",
+        "Reemplazo de componente hardware defectuoso + pruebas de estrés",
+        "Ajuste de configuración + documentación actualizada + monitoreo 24/7",
+        "Implementación de workaround temporal + escalamiento a fabricante",
+        "Reinicio de servicios dependientes + limpieza de logs + verificación de permisos"
+    ];
 
     setInterval(() => document.getElementById('clock').textContent = new Date().toLocaleString('es-ES'), 1000);
 
     function initCharts() {
-        charts.prio = new Chart(document.getElementById('chart-prio'), { type: 'doughnut', data: { labels: ['Crítica','Alta','Media'], datasets: [{ data: [0,0,0], backgroundColor: ['#ef4444','#f59e0b','#3b82f6'] }] }, options: { responsive: true } });
-        charts.trend = new Chart(document.getElementById('chart-trend'), { type: 'line', data: { labels: [], datasets: [{ label: 'Incidentes', data: [], borderColor: '#60a5fa' }] } });
-        charts.sim = new Chart(document.getElementById('sim-chart'), { type: 'bar', data: { labels: ['Resueltos','Pendientes'], datasets: [{ data: [0,0], backgroundColor: ['#10b981','#ef4444'] }] } });
+        charts.prio = new Chart(document.getElementById('chart-prio'), { 
+            type: 'doughnut', 
+            data: { 
+                labels: ['Crítica','Alta','Media','Baja'], 
+                datasets: [{ 
+                    data: [0,0,0,0], 
+                    backgroundColor: ['#ef4444','#f59e0b','#3b82f6','#64748b'] 
+                }] 
+            }, 
+            options: { 
+                responsive: true,
+                plugins: { 
+                    title: { display: true, text: 'Incidentes por Prioridad', color: '#e2e8f0' },
+                    legend: { labels: { color: '#e2e8f0' } }
+                } 
+            } 
+        });
+
+        charts.trend = new Chart(document.getElementById('chart-trend'), { 
+            type: 'line', 
+            data: { 
+                labels: [], 
+                datasets: [
+                    { label: 'Incidentes', data: [], borderColor: '#60a5fa', tension: 0.4 },
+                    { label: 'Problemas', data: [], borderColor: '#f59e0b', tension: 0.4 }
+                ] 
+            },
+            options: {
+                responsive: true,
+                plugins: { 
+                    title: { display: true, text: 'Tendencia Temporal', color: '#e2e8f0' },
+                    legend: { labels: { color: '#e2e8f0' } }
+                },
+                scales: {
+                    y: { ticks: { color: '#e2e8f0' }, grid: { color: '#334155' } },
+                    x: { ticks: { color: '#e2e8f0' }, grid: { color: '#334155' } }
+                }
+            }
+        });
+
+        charts.status = new Chart(document.getElementById('chart-status'), {
+            type: 'bar',
+            data: {
+                labels: ['Nuevo', 'En Progreso', 'En Investigación', 'Resuelto'],
+                datasets: [{
+                    label: 'Estados',
+                    data: [0,0,0,0],
+                    backgroundColor: ['#ef4444', '#3b82f6', '#f59e0b', '#10b981']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { 
+                    title: { display: true, text: 'Incidentes por Estado', color: '#e2e8f0' },
+                    legend: { labels: { color: '#e2e8f0' } }
+                },
+                scales: {
+                    y: { ticks: { color: '#e2e8f0' }, grid: { color: '#334155' } },
+                    x: { ticks: { color: '#e2e8f0' }, grid: { color: '#334155' } }
+                }
+            }
+        });
+
+        charts.problems = new Chart(document.getElementById('chart-problems'), {
+            type: 'pie',
+            data: {
+                labels: ['Infraestructura', 'Red', 'Aplicaciones', 'Base de Datos', 'Otros'],
+                datasets: [{
+                    data: [0,0,0,0,0],
+                    backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#64748b']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { 
+                    title: { display: true, text: 'Problemas por Categoría', color: '#e2e8f0' },
+                    legend: { labels: { color: '#e2e8f0' } }
+                }
+            }
+        });
+
+        charts.sim = new Chart(document.getElementById('sim-chart'), { 
+            type: 'bar', 
+            data: { 
+                labels: ['Resueltos','Pendientes'], 
+                datasets: [{ 
+                    data: [0,0], 
+                    backgroundColor: ['#10b981','#ef4444'] 
+                }] 
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { labels: { color: '#e2e8f0' } } },
+                scales: {
+                    y: { ticks: { color: '#e2e8f0' }, grid: { color: '#334155' } },
+                    x: { ticks: { color: '#e2e8f0' }, grid: { color: '#334155' } }
+                }
+            }
+        });
     }
 
     function updateCharts() {
-        const c = incidents.filter(i => i.priority === 'Crítica').length;
-        const a = incidents.filter(i => i.priority === 'Alta').length;
-        const m = incidents.length - c - a;
-        charts.prio.data.datasets[0].data = [c, a, m];
+        // Incidentes por prioridad
+        const crit = incidents.filter(i => i.priority === 'Crítica').length;
+        const alta = incidents.filter(i => i.priority === 'Alta').length;
+        const media = incidents.filter(i => i.priority === 'Media').length;
+        const baja = incidents.filter(i => i.priority === 'Baja').length;
+        charts.prio.data.datasets[0].data = [crit, alta, media, baja];
         charts.prio.update();
 
+        // Incidentes por estado
+        const nuevo = incidents.filter(i => i.status === 'Nuevo').length;
+        const progreso = incidents.filter(i => i.status === 'En Progreso').length;
+        const investig = incidents.filter(i => i.status === 'En Investigación').length;
+        const resuelto = incidents.filter(i => i.status === 'Resuelto').length;
+        charts.status.data.datasets[0].data = [nuevo, progreso, investig, resuelto];
+        charts.status.update();
+
+        // Problemas por categoría
+        const catCount = {};
+        problems.forEach(p => {
+            catCount[p.category] = (catCount[p.category] || 0) + 1;
+        });
+        const cats = ['Infraestructura', 'Red', 'Aplicaciones', 'Base de Datos', 'Otros'];
+        charts.problems.data.datasets[0].data = cats.map(c => catCount[c] || 0);
+        charts.problems.update();
+
+        // KPIs
         document.getElementById('k-inc').textContent = incidents.length;
-        document.getElementById('k-crit').textContent = c;
+        document.getElementById('k-crit').textContent = crit;
         document.getElementById('k-res').textContent = resolvedCount;
+        document.getElementById('k-prob').textContent = problems.length;
+        document.getElementById('k-kb').textContent = kbArticles.length;
     }
 
     function showSection(s) {
         document.querySelectorAll('.section').forEach(el => el.style.display = 'none');
         document.getElementById(s).style.display = 'block';
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.nav-btn').forEach(b => b.onclick?.toString().includes(s) && b.classList.add('active'));
+        
+        // Activar el botón correspondiente
+        document.querySelectorAll('.nav-btn').forEach(b => {
+            if (b.getAttribute('onclick')?.includes(s)) {
+                b.classList.add('active');
+            }
+        });
+        
         if (s==='incidents') renderTable('inc');
         if (s==='problems') renderTable('prob');
+        if (s==='kb') renderKB();
     }
 
     function toast(msg) {
-        const t = document.createElement('div'); t.className='toast'; t.innerHTML = msg; document.body.appendChild(t);
+        const t = document.createElement('div'); 
+        t.className='toast'; 
+        t.innerHTML = msg; 
+        document.body.appendChild(t);
         setTimeout(() => t.remove(), 4000);
     }
 
     function startGen(type) {
         clearInterval(genInterval);
+        const templates = type === 'incident' ? incTemplates : probTemplates;
+        
         genInterval = setInterval(() => {
-            const item = {
-                id: type==='incident' ? 'INC'+String(1000+incidents.length+1).padStart(4,'0') : 'PRB'+String(problems.length+1).padStart(6,'0'),
-                title: (type==='incident'?incTemplates:probTemplates)[Math.floor(Math.random()*(type==='incident'?incTemplates:probTemplates).length)],
-                priority: type==='incident' ? ['Crítica','Alta','Media'][Math.floor(Math.random()*3)] : 'Alta',
-                status: 'Nuevo', time: new Date().toLocaleTimeString()
-            };
-            if(type==='incident') incidents.unshift(item); else problems.unshift(item);
-            if(item.priority==='Crítica') document.getElementById('alert').play();
+            const template = templates[Math.floor(Math.random() * templates.length)];
+            const priorities = ['Crítica', 'Alta', 'Media', 'Baja'];
+            const statuses = ['Nuevo', 'En Progreso', 'En Investigación'];
+            
+            if (type === 'incident') {
+                const item = {
+                    id: 'INC' + String(10000 + incidents.length + 1).padStart(6, '0'),
+                    title: template.title,
+                    description: template.desc,
+                    category: template.category,
+                    affected: template.affected,
+                    impact: template.impact,
+                    priority: priorities[Math.floor(Math.random() * priorities.length)],
+                    status: statuses[Math.floor(Math.random() * statuses.length)],
+                    time: new Date().toLocaleString('es-ES'),
+                    assignedTo: ['Juan Pérez', 'María García', 'Carlos López', 'Ana Martínez'][Math.floor(Math.random() * 4)],
+                    sla: Math.floor(Math.random() * 240) + ' min'
+                };
+                incidents.unshift(item);
+                if (item.priority === 'Crítica') document.getElementById('alert').play();
+            } else {
+                const item = {
+                    id: 'PRB' + String(100000 + problems.length + 1).padStart(7, '0'),
+                    title: template.title,
+                    description: template.desc,
+                    rootCause: template.rootCause,
+                    category: template.category,
+                    priority: 'Alta',
+                    status: statuses[Math.floor(Math.random() * statuses.length)],
+                    time: new Date().toLocaleString('es-ES'),
+                    relatedIncidents: Math.floor(Math.random() * 15) + 3,
+                    assignedTo: ['Equipo Infraestructura', 'Equipo Red', 'Equipo Desarrollo'][Math.floor(Math.random() * 3)]
+                };
+                problems.unshift(item);
+            }
+            
             updateCharts();
-            toast(`${type==='incident'?'Incidente':'Problema'} ${item.id} generado`);
+            toast(`${type === 'incident' ? 'Incidente' : 'Problema'} generado correctamente`);
         }, 5000);
     }
 
-    function stopGen() { clearInterval(genInterval); toast("Generación detenida"); }
+    function stopGen() { 
+        clearInterval(genInterval); 
+        toast("Generación automática detenida"); 
+    }
 
-    // === MODAL EXACTAMENTE COMO PEDISTE ===
     function openResolveModal() {
-        if (incidents.length + problems.length === 0) return alert("No hay registros para resolver");
+        if (incidents.length + problems.length === 0) {
+            toast("⚠️ No hay registros para resolver");
+            return;
+        }
 
         document.getElementById('modal-title').textContent = "Simulación de Resolución";
-        document.getElementById('modal-text').textContent = "¿Deseas simular la resolución de todos los registros generados?";
+        document.getElementById('modal-text').textContent = `¿Deseas simular la resolución de todos los registros generados? (${incidents.length} incidentes + ${problems.length} problemas)`;
         document.getElementById('modal-buttons').innerHTML = `
             <button class="btn-giant btn-resolve" style="margin:15px;" onclick="closeModal(); startSimulation()">Sí, resolver todo</button>
-            <button class="btn-giant" style="background:#6b7280; margin:15px;" onclick="askWhatToSee()">No, solo quiero ver registros</button>
+            <button class="btn-giant" style="background:#6b7280; margin:15px;" onclick="askWhatToSee()">No, solo ver registros</button>
         `;
         document.getElementById('modal').classList.add('show');
     }
@@ -227,11 +447,13 @@
         document.getElementById('modal-buttons').innerHTML = `
             <button class="btn-giant" style="background:#4361ee;" onclick="closeModal(); showSection('incidents')">Ver Incidentes</button>
             <button class="btn-giant" style="background:#ea580c;" onclick="closeModal(); showSection('problems')">Ver Problemas</button>
+            <button class="btn-giant" style="background:#10b981;" onclick="closeModal(); showSection('kb')">Ver Base de Conocimiento</button>
         `;
         document.getElementById('modal').classList.add('show');
     }
 
     function startSimulation() {
+        showSection('simulator');
         document.getElementById('simulation-area').style.display = 'block';
         document.getElementById('sim-steps').innerHTML = '';
         let all = [...incidents, ...problems];
@@ -241,86 +463,347 @@
         simInterval = setInterval(() => {
             if (i >= all.length) {
                 clearInterval(simInterval);
-                addStep("SIMULACIÓN COMPLETA – " + resolvedCount + " registros resueltos", true);
+                addStep("✅ SIMULACIÓN COMPLETA – " + resolvedCount + " registros resueltos exitosamente", true);
                 charts.sim.data.datasets[0].data = [resolvedCount, 0];
                 charts.sim.update();
+                toast("🎉 Simulación completada con éxito");
                 return;
             }
             const item = all[i];
-            addStep(`Resolviendo ${item.id}: ${item.title}...`);
+            addStep(`⚙️ Procesando ${item.id}: ${item.title}...`);
             setTimeout(() => {
                 item.status = "Resuelto";
                 resolvedCount++;
-                addStep(`${item.id} RESUELTO`, true);
+                addStep(`✓ ${item.id} RESUELTO CORRECTAMENTE`, true);
                 addToKB(item);
                 updateCharts();
                 renderTable('inc');
                 renderTable('prob');
-                charts.sim.data.datasets[0].data = [resolvedCount, all.length-resolvedCount];
+                charts.sim.data.datasets[0].data = [resolvedCount, all.length - resolvedCount];
                 charts.sim.update();
             }, 2000);
             i++;
         }, 4500);
     }
 
-    function addStep(text, success=false) {
+    function addStep(text, success = false) {
         const s = document.createElement('div');
         s.className = 'step';
-        s.innerHTML = `<i class="fas ${success?'fa-check-circle':'fa-cog fa-spin'}"></i> ${text}`;
-        if(success) s.classList.add('success');
+        s.innerHTML = `<i class="fas ${success ? 'fa-check-circle' : 'fa-cog fa-spin'}"></i> ${text}`;
+        if (success) s.classList.add('success');
         document.getElementById('sim-steps').appendChild(s);
         setTimeout(() => s.classList.add('show'), 100);
     }
 
     function renderTable(type) {
-        const data = type==='inc' ? incidents : problems;
-        const container = document.getElementById(type==='inc'?'inc-table':'prob-table');
-        container.innerHTML = `<table><thead><tr><th>ID</th><th>Título</th><th>Prioridad/Estado</th><th>Hora</th></tr></thead><tbody>
-            ${data.map(x=>`<tr><td><strong>${x.id}</strong></td><td>${x.title}</td><td><span class="status ${type==='inc'?x.priority.toLowerCase():''} ${x.status.toLowerCase().replace(' ','-')}">${type==='inc'?x.priority+' - ':''}${x.status}</span></td><td>${x.time}</td></tr>`).join('')}
-        </tbody></table>`;
+        const data = type === 'inc' ? incidents : problems;
+        const container = document.getElementById(type === 'inc' ? 'inc-table' : 'prob-table');
+        
+        if (data.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:40px;">No hay registros disponibles</p>';
+            return;
+        }
+
+        if (type === 'inc') {
+            container.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Título</th>
+                            <th>Categoría</th>
+                            <th>Afectados</th>
+                            <th>Prioridad</th>
+                            <th>Estado</th>
+                            <th>Responsable</th>
+                            <th>SLA</th>
+                            <th>Hora</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(x => `
+                            <tr>
+                                <td><strong>${x.id}</strong></td>
+                                <td>
+                                    <strong>${x.title}</strong><br>
+                                    <small style="color:#94a3b8;">${x.description}</small>
+                                </td>
+                                <td>${x.category}</td>
+                                <td>${x.affected}</td>
+                                <td><span class="status ${x.priority.toLowerCase()}">${x.priority}</span></td>
+                                <td><span class="status ${x.status.toLowerCase().replace(/ /g, '-')}">${x.status}</span></td>
+                                <td>${x.assignedTo}</td>
+                                <td>${x.sla}</td>
+                                <td>${x.time}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        } else {
+            container.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Título</th>
+                            <th>Categoría</th>
+                            <th>Causa Raíz</th>
+                            <th>Inc. Relacionados</th>
+                            <th>Estado</th>
+                            <th>Equipo</th>
+                            <th>Hora</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(x => `
+                            <tr>
+                                <td><strong>${x.id}</strong></td>
+                                <td>
+                                    <strong>${x.title}</strong><br>
+                                    <small style="color:#94a3b8;">${x.description}</small>
+                                </td>
+                                <td>${x.category}</td>
+                                <td><em style="color:#f59e0b;">${x.rootCause}</em></td>
+                                <td><span class="status media">${x.relatedIncidents}</span></td>
+                                <td><span class="status ${x.status.toLowerCase().replace(/ /g, '-')}">${x.status}</span></td>
+                                <td>${x.assignedTo}</td>
+                                <td>${x.time}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
     }
 
     function addToKB(item) {
-        const div = document.createElement('div'); div.className='widget';
-        div.innerHTML = `<strong>${item.id}</strong> – ${item.title}<br><em>Solución:</em> Reinicio + parche. Tiempo medio: 12 min`;
-        document.getElementById('kb-list').prepend(div);
+        const solution = solutions[Math.floor(Math.random() * solutions.length)];
+        const timeResolved = Math.floor(Math.random() * 45) + 5;
+        
+        const article = {
+            id: 'KB' + String(10000 + kbArticles.length + 1).padStart(6, '0'),
+            sourceId: item.id,
+            title: item.title,
+            category: item.category,
+            description: item.description || item.rootCause || 'Problema identificado y resuelto',
+            solution: solution,
+            timeResolved: timeResolved + ' min',
+            author: item.assignedTo || 'Sistema Automático',
+            date: new Date().toLocaleString('es-ES'),
+            views: 0,
+            helpful: 0
+        };
+        
+        kbArticles.unshift(article);
+        updateCharts();
+    }
+
+    function renderKB() {
+        const container = document.getElementById('kb-list');
+        
+        if (kbArticles.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:40px;">No hay artículos en la base de conocimiento. Resuelve algunos incidentes o problemas para generar contenido.</p>';
+            return;
+        }
+
+        container.innerHTML = kbArticles.map(article => `
+            <div class="kb-card">
+                <h3><i class="fas fa-lightbulb"></i> ${article.title}</h3>
+                <div class="kb-meta">
+                    <i class="fas fa-tag"></i> <strong>ID:</strong> ${article.id} | 
+                    <i class="fas fa-link"></i> <strong>Origen:</strong> ${article.sourceId} | 
+                    <i class="fas fa-folder"></i> <strong>Categoría:</strong> ${article.category}
+                </div>
+                <div class="kb-meta">
+                    <i class="fas fa-user"></i> <strong>Autor:</strong> ${article.author} | 
+                    <i class="fas fa-clock"></i> <strong>Fecha:</strong> ${article.date} | 
+                    <i class="fas fa-hourglass-half"></i> <strong>Tiempo resolución:</strong> ${article.timeResolved}
+                </div>
+                <div class="detail-row">
+                    <strong><i class="fas fa-info-circle"></i> Descripción:</strong><br>
+                    ${article.description}
+                </div>
+                <div class="kb-solution">
+                    <strong><i class="fas fa-check-circle"></i> Solución Aplicada:</strong><br>
+                    ${article.solution}
+                </div>
+                <div style="margin-top:15px; color:#64748b;">
+                    <i class="fas fa-eye"></i> ${article.views} vistas | 
+                    <i class="fas fa-thumbs-up"></i> ${article.helpful} útil
+                </div>
+            </div>
+        `).join('');
     }
 
     function exportPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        doc.setFontSize(20); doc.text('Reporte NEXUS ITIL v9.0', 20, 20);
-        doc.setFontSize(12); doc.text(`Fecha: ${new Date().toLocaleString()}`, 20, 40);
-        doc.text(`Incidentes: ${incidents.length} | Problemas: ${problems.length} | Resueltos: ${resolvedCount}`, 20, 50);
-        doc.save('nexus-itil-v9.pdf');
-        toast("PDF exportado");
+        
+        // PORTADA
+        doc.setFillColor(15, 23, 42);
+        doc.rect(0, 0, 210, 297, 'F');
+        doc.setTextColor(96, 165, 250);
+        doc.setFontSize(32);
+        doc.text('NEXUS ITIL v10.0', 105, 80, { align: 'center' });
+        doc.setFontSize(18);
+        doc.setTextColor(226, 232, 240);
+        doc.text('Reporte Completo de Gestión', 105, 100, { align: 'center' });
+        doc.setFontSize(12);
+        doc.text(`Generado: ${new Date().toLocaleString('es-ES')}`, 105, 120, { align: 'center' });
+        
+        // RESUMEN EJECUTIVO
+        doc.addPage();
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(20);
+        doc.text('Resumen Ejecutivo', 20, 20);
+        doc.setFontSize(12);
+        doc.text(`Total Incidentes: ${incidents.length}`, 20, 35);
+        doc.text(`Total Problemas: ${problems.length}`, 20, 45);
+        doc.text(`Registros Resueltos: ${resolvedCount}`, 20, 55);
+        doc.text(`Artículos KB: ${kbArticles.length}`, 20, 65);
+        doc.text(`SLA Compliance: 99.4%`, 20, 75);
+        
+        // ESTADÍSTICAS
+        const criticos = incidents.filter(i => i.priority === 'Crítica').length;
+        const altos = incidents.filter(i => i.priority === 'Alta').length;
+        const medios = incidents.filter(i => i.priority === 'Media').length;
+        doc.text('Distribución por Prioridad:', 20, 90);
+        doc.text(`  • Crítica: ${criticos}`, 25, 100);
+        doc.text(`  • Alta: ${altos}`, 25, 110);
+        doc.text(`  • Media: ${medios}`, 25, 120);
+        
+        // TABLA DE INCIDENTES
+        if (incidents.length > 0) {
+            doc.addPage();
+            doc.setFontSize(18);
+            doc.text('Detalle de Incidentes', 20, 20);
+            
+            const incData = incidents.map(inc => [
+                inc.id,
+                inc.title.substring(0, 30),
+                inc.category,
+                inc.priority,
+                inc.status,
+                inc.assignedTo,
+                inc.time
+            ]);
+            
+            doc.autoTable({
+                startY: 30,
+                head: [['ID', 'Título', 'Categoría', 'Prioridad', 'Estado', 'Responsable', 'Hora']],
+                body: incData,
+                theme: 'grid',
+                headStyles: { fillColor: [67, 97, 238] },
+                styles: { fontSize: 8 }
+            });
+        }
+        
+        // TABLA DE PROBLEMAS
+        if (problems.length > 0) {
+            doc.addPage();
+            doc.setFontSize(18);
+            doc.text('Detalle de Problemas', 20, 20);
+            
+            const probData = problems.map(prob => [
+                prob.id,
+                prob.title.substring(0, 25),
+                prob.category,
+                prob.rootCause.substring(0, 35),
+                String(prob.relatedIncidents),
+                prob.status,
+                prob.assignedTo
+            ]);
+            
+            doc.autoTable({
+                startY: 30,
+                head: [['ID', 'Título', 'Categoría', 'Causa Raíz', 'Inc. Rel.', 'Estado', 'Equipo']],
+                body: probData,
+                theme: 'grid',
+                headStyles: { fillColor: [234, 88, 12] },
+                styles: { fontSize: 8 }
+            });
+        }
+        
+        // BASE DE CONOCIMIENTO
+        if (kbArticles.length > 0) {
+            doc.addPage();
+            doc.setFontSize(18);
+            doc.text('Base de Conocimiento', 20, 20);
+            
+            const kbData = kbArticles.map(kb => [
+                kb.id,
+                kb.title.substring(0, 30),
+                kb.category,
+                kb.solution.substring(0, 40),
+                kb.timeResolved
+            ]);
+            
+            doc.autoTable({
+                startY: 30,
+                head: [['ID', 'Título', 'Categoría', 'Solución', 'Tiempo']],
+                body: kbData,
+                theme: 'grid',
+                headStyles: { fillColor: [16, 185, 129] },
+                styles: { fontSize: 8 }
+            });
+        }
+        
+        doc.save('nexus-itil-v10-reporte-completo.pdf');
+        toast("📄 PDF exportado exitosamente");
     }
 
     function exportJSON() {
-        const data = { incidents, problems, resolvedCount, fecha: new Date() };
-        const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+        const data = {
+            metadata: {
+                version: '10.0',
+                generated: new Date().toISOString(),
+                summary: {
+                    totalIncidents: incidents.length,
+                    totalProblems: problems.length,
+                    resolvedCount: resolvedCount,
+                    kbArticles: kbArticles.length
+                }
+            },
+            incidents: incidents,
+            problems: problems,
+            knowledgeBase: kbArticles
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href=url; a.download='nexus-data.json'; a.click();
-        toast("JSON exportado");
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'nexus-itil-v10-data.json';
+        a.click();
+        toast("💾 JSON exportado exitosamente");
     }
 
     function clearAll() {
-        if(confirm("¿Borrar todo?")) {
-            incidents=[]; problems=[]; resolvedCount=0;
-            clearInterval(genInterval); clearInterval(simInterval);
-            document.getElementById('simulation-area').style.display='none';
-            document.getElementById('kb-list').innerHTML='';
+        if (confirm("⚠️ ¿Estás seguro de que deseas borrar todos los datos? Esta acción no se puede deshacer.")) {
+            incidents = [];
+            problems = [];
+            kbArticles = [];
+            resolvedCount = 0;
+            clearInterval(genInterval);
+            clearInterval(simInterval);
+            document.getElementById('simulation-area').style.display = 'none';
             updateCharts();
-            renderTable('inc'); renderTable('prob');
-            toast("Sistema limpio");
+            renderTable('inc');
+            renderTable('prob');
+            renderKB();
+            toast("🗑️ Sistema limpio - Todos los datos eliminados");
         }
     }
 
-    // INICIO
-    initCharts();
-    showSection('simulator');
-    renderTable('inc');
-    renderTable('prob');
+    // INICIALIZACIÓN
+    window.addEventListener('DOMContentLoaded', () => {
+        initCharts();
+        showSection('simulator');
+        renderTable('inc');
+        renderTable('prob');
+        renderKB();
+        toast("✨ Sistema NEXUS ITIL v10.0 iniciado correctamente");
+    });
 </script>
 </body>
 </html>
